@@ -13,6 +13,18 @@ return new class extends Migration
     {
         Schema::create('appointments', function (Blueprint $table) {
             $table->id();
+            $table->string('slug')->unique();
+            $table->foreignId('doctor_id')->constrained()->cascadeOnDelete();
+            $table->string('patient_name');
+            $table->string('patient_email');
+            $table->string('patient_phone');
+            $table->string('patient_id_number');
+            $table->date('patient_birth_date');
+            $table->text('reason')->nullable();
+            $table->dateTime('appointment_date');
+            $table->integer('duration_minutes');
+            $table->enum('status', ['pendiente', 'confirmada', 'rechazada', 'completada'])->default('pendiente');
+            $table->text('admin_notes')->nullable();
             $table->timestamps();
         });
     }

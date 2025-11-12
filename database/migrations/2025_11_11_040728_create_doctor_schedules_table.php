@@ -13,6 +13,11 @@ return new class extends Migration
     {
         Schema::create('doctor_schedules', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('doctor_id')->constrained()->cascadeOnDelete();
+            $table->integer('day_of_week'); // 0=Domingo, 1=Lunes, ..., 6=Sábado
+            $table->time('start_time');
+            $table->time('end_time');
+            $table->boolean('is_active')->default(true);
             $table->timestamps();
         });
     }
