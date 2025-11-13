@@ -2,64 +2,67 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\StoreDoctorRequest;
+use App\Http\Requests\UpdateDoctorRequest;
 use App\Models\Doctor;
 use Illuminate\Http\Request;
+use Inertia\Inertia;
 
 class DoctorController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
     public function index()
     {
-        //
+        $doctors = Doctor::with('schedules')
+            ->where('is_active', true)
+            ->get();
+
+        return Inertia::render('Doctors/Index', [
+            'doctors' => $doctors,
+        ]);
     }
 
-    /**
-     * Show the form for creating a new resource.
-     */
     public function create()
     {
-        //
+        return Inertia::render('Doctors/Create');
     }
 
-    /**
-     * Store a newly created resource in storage.
-     */
-    public function store(Request $request)
+    public function store(StoreDoctorRequest $request)
     {
-        //
+        Doctor::create($request->validated());
+
+        return redirect()->route('doctors.index')
+            ->with('success', 'Médico creado exitosamente');
     }
 
-    /**
-     * Display the specified resource.
-     */
     public function show(Doctor $doctor)
     {
-        //
+        $doctor->load('schedules');
+        
+        return Inertia::render('Doctors/Show', [
+            'doctor' => $doctor,
+        ]);
     }
 
-    /**
-     * Show the form for editing the specified resource.
-     */
     public function edit(Doctor $doctor)
     {
-        //
+        return Inertia::render('Doctors/Edit', [
+            'doctor' => $doctor,
+        ]);
     }
 
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, Doctor $doctor)
+    public function update(UpdateDoctorRequest $request, Doctor $doctor)
     {
-        //
+        $doctor->update($request->validated());
+
+        return redirect()->route('doctors.index')
+            ->with('success', 'Médico actualizado exitosamente');
     }
 
-    /**
-     * Remove the specified resource from storage.
-     */
     public function destroy(Doctor $doctor)
     {
-        //
+        $doctor->delete();
+
+        return redirect()->route('doctors.index')
+            ->with('success', 'Médico eliminado exitosamente');
     }
 }
