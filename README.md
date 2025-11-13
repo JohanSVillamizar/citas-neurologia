@@ -59,3 +59,11 @@ CREATE DATABASE citas_neurologia;
 ```bash
 php artisan migrate
 ```
+
+6. Ejecuta los seeders
+
+```bash
+php artisan db:seed
+```
+
+
