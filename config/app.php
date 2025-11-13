@@ -1,6 +1,8 @@
 <?php
 
 return [
+    'appointment_duration' => env('APPOINTMENT_DURATION_MINUTES', 30),
+
 
     /*
     |--------------------------------------------------------------------------
