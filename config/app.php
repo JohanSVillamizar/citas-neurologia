@@ -123,7 +123,7 @@ return [
     'maintenance' => [
         'driver' => env('APP_MAINTENANCE_DRIVER', 'file'),
         'store' => env('APP_MAINTENANCE_STORE', 'database'),
-        'appointment_duration' => env('APPOINTMENT_DURATION_MINUTES', 30),
+        //'appointment_duration' => env('APPOINTMENT_DURATION_MINUTES', 30),
     ],
 
 ];
