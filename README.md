@@ -23,6 +23,7 @@ composer require laravel/jetstream
 php artisan jetstream:install inertia
 npm install
 npm install @vitejs/plugin-vue@^6 --save-dev
+npm install vue-cal
 ```
 
 3. Configura PostgreSQL editando el archivo `.env` en la raíz del proyecto:

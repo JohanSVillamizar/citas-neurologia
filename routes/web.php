@@ -10,6 +10,7 @@ use Inertia\Inertia;
 
 // Ruta pública para la página de bienvenida con doctores y flags de login/register
 Route::get('/', [PublicController::class, 'welcome'])->name('welcome');
+Route::get('/medicos/{slug}', [PublicController::class, 'doctorProfile'])->name('public.doctors.show');
 
 // Ruta pública para el calendario de citas por doctor
 Route::get('/calendar', [PublicController::class, 'calendar'])->name('calendar');

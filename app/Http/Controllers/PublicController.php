@@ -39,4 +39,15 @@ class PublicController extends Controller
             'doctors' => Doctor::where('is_active', true)->get(),
         ]);
     }
+    public function doctorProfile($slug)
+    {
+        $doctor = Doctor::where('slug', $slug)
+            ->where('is_active', true)
+            ->with('schedules')
+            ->firstOrFail();
+
+        return Inertia::render('Public/DoctorProfile', [
+            'doctor' => $doctor,
+        ]);
+    }
 }
