@@ -10,13 +10,10 @@ use Inertia\Inertia;
 
 // Ruta pública para la página de bienvenida con doctores y flags de login/register
 Route::get('/', [PublicController::class, 'welcome'])->name('welcome');
+
 Route::get('/medicos/{slug}', [PublicController::class, 'doctorProfile'])->name('public.doctors.show');
 
-// Ruta pública para el calendario de citas por doctor
-Route::get('/calendar', [PublicController::class, 'calendar'])->name('calendar');
-
-// Ver perfil de doctor (público)
-Route::get('/doctors/{doctor}', [DoctorController::class, 'show'])->name('doctors.show');
+Route::get('/medicos/{slug}/disponibilidad', [PublicController::class, 'doctorAvailability']);
 
 // Rutas públicas para solicitar cita
 Route::get('/appointments/new', [AppointmentController::class, 'create'])->name('appointments.new');
@@ -28,16 +25,10 @@ Route::middleware([
     config('jetstream.auth_session'),
     'verified',
 ])->group(function () {
-    // Dashboard de usuario autenticado
+    // Panel y gestión interna
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
-
-    // CRUD para doctores (excepto show)
     Route::resource('doctors', DoctorController::class)->except(['show']);
-
-    // CRUD para citas (excepto creación pública)
     Route::resource('appointments', AppointmentController::class)->except(['create', 'store']);
-
-    // Rutas para aceptar o rechazar citas
     Route::post('/appointments/{appointment}/accept', [AppointmentController::class, 'accept'])->name('appointments.accept');
     Route::post('/appointments/{appointment}/reject', [AppointmentController::class, 'reject'])->name('appointments.reject');
 });

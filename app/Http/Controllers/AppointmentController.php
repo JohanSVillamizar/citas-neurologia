@@ -40,25 +40,32 @@ class AppointmentController extends Controller
     public function create(Request $request)
     {
         $doctor = null;
+
         if ($request->has('doctor')) {
-            $doctor = Doctor::where('slug', $request->doctor)->first();
+            $doctor = Doctor::where('slug', $request->doctor)
+                ->with('schedules') // ← IMPORTANTE
+                ->first();
         }
 
         return Inertia::render('Appointments/Create', [
-            'doctors' => Doctor::where('is_active', true)->get(),
+            'doctors' => Doctor::where('is_active', true)
+                ->with('schedules') // ← IMPORTANTE
+                ->get(),
+
             'selectedDoctor' => $doctor,
             'appointmentDate' => $request->start,
         ]);
     }
 
+
     public function store(StoreAppointmentRequest $request)
     {
         $validated = $request->validated();
-        
+
         // Validar que no haya conflicto de horario
         $appointmentDate = Carbon::parse($validated['appointment_date']);
         $duration = config('app.appointment_duration', 30);
-        
+
         $conflict = Appointment::where('doctor_id', $validated['doctor_id'])
             ->whereIn('status', ['pendiente', 'confirmada'])
             ->where(function ($query) use ($appointmentDate, $duration) {
@@ -66,10 +73,10 @@ class AppointmentController extends Controller
                     $appointmentDate,
                     $appointmentDate->copy()->addMinutes($duration)
                 ])
-                ->orWhere(function ($q) use ($appointmentDate) {
-                    $q->where('appointment_date', '<=', $appointmentDate)
-                      ->whereRaw('DATE_ADD(appointment_date, INTERVAL duration_minutes MINUTE) > ?', [$appointmentDate]);
-                });
+                    ->orWhere(function ($q) use ($appointmentDate) {
+                        $q->where('appointment_date', '<=', $appointmentDate)
+                            ->whereRaw('DATE_ADD(appointment_date, INTERVAL duration_minutes MINUTE) > ?', [$appointmentDate]);
+                    });
             })
             ->exists();
 
