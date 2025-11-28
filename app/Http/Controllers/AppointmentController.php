@@ -12,6 +12,7 @@ use App\Models\Doctor;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 
 class AppointmentController extends Controller
@@ -64,7 +65,7 @@ class AppointmentController extends Controller
 
         // Validar que no haya conflicto de horario
         $appointmentDate = Carbon::parse($validated['appointment_date']);
-        $duration = config('app.appointment_duration', 30);
+        $duration = (int) ($validated['duration_minutes'] ?? config('app.appointment_duration'));
 
         $conflict = Appointment::where('doctor_id', $validated['doctor_id'])
             ->whereIn('status', ['pendiente', 'confirmada'])
@@ -73,10 +74,10 @@ class AppointmentController extends Controller
                     $appointmentDate,
                     $appointmentDate->copy()->addMinutes($duration)
                 ])
-                    ->orWhere(function ($q) use ($appointmentDate) {
-                        $q->where('appointment_date', '<=', $appointmentDate)
-                            ->whereRaw('DATE_ADD(appointment_date, INTERVAL duration_minutes MINUTE) > ?', [$appointmentDate]);
-                    });
+                ->orWhere(function ($q) use ($appointmentDate) {
+                    $q->where('appointment_date', '<=', $appointmentDate)
+                    ->whereRaw('(appointment_date + (duration_minutes || \' minutes\')::interval) > ?', [$appointmentDate]);
+                });
             })
             ->exists();
 
@@ -89,12 +90,18 @@ class AppointmentController extends Controller
         $validated['duration_minutes'] = $duration;
         $validated['status'] = 'pendiente';
 
+        // Crear la cita
         $appointment = Appointment::create($validated);
         $appointment->load('doctor');
 
-        // Enviar correo
-        Mail::to($appointment->patient_email)
-            ->send(new AppointmentCreated($appointment));
+        // Enviar correo con manejo de errores
+        try {
+            Mail::to($appointment->patient_email)->send(new AppointmentCreated($appointment));
+            Log::info('Correo enviado exitosamente a: ' . $appointment->patient_email);
+        } catch (\Exception $e) {
+            Log::error('Error enviando correo de cita: ' . $e->getMessage());
+            // No fallar si el correo no se envía, pero guardar la cita
+        }
 
         return redirect()->route('welcome')
             ->with('success', 'Cita solicitada exitosamente. Recibirás un correo de confirmación.');
