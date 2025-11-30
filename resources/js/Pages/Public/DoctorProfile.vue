@@ -9,10 +9,13 @@ const props = defineProps({
 
 const daysOfWeek = ['Domingo', 'Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado'];
 
-// Agrupa las franjas horarias por día
+// Agrupa las franjas horarias por día - SOLO las activas
 const availableByDay = computed(() => {
     const grouped = {};
     for (const schedule of (props.doctor.schedules || [])) {
+        // ✅ Filtra solo los activos
+        if (!schedule.is_active) continue;
+        
         if (!grouped[schedule.day_of_week]) {
             grouped[schedule.day_of_week] = [];
         }
@@ -49,7 +52,7 @@ const availableByDay = computed(() => {
       <h2 class="text-2xl font-semibold mb-4">Disponibilidad Semanal</h2>
       <ul class="list-disc list-inside mb-8 space-y-2">
         <li v-for="day in Object.keys(availableByDay)" :key="day">
-          <strong>{{ daysOfWeek[day] }}:</strong>
+          <strong>{{ daysOfWeek[day] }}: </strong>
           <span v-for="(franja, idx) in availableByDay[day]" :key="franja">
             {{ franja }}<span v-if="idx < availableByDay[day].length-1"> y </span>
           </span>

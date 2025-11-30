@@ -88,7 +88,7 @@ function closeConfirm() {
                                 <button @click="openConfirm(doctor)" class="px-3 py-1.5 rounded-lg text-white" :class="doctor.is_active
                                     ? 'bg-red-600 hover:bg-red-700'
                                     : 'bg-green-600 hover:bg-green-700'">
-                                    {{ doctor.is_active ? 'Desactivar' : 'Activar' }}
+                                    {{ doctor.is_active ? 'Inactivar' : 'Activar' }}
                                 </button>
 
                             </td>
@@ -120,7 +120,7 @@ function closeConfirm() {
 
                 <p class="text-gray-700">
                     ¿Seguro que deseas
-                    <strong>{{ selectedDoctor.is_active ? 'desactivar' : 'activar' }}</strong>
+                    <strong>{{ selectedDoctor.is_active ? 'inactivar' : 'activar' }}</strong>
                     al médico <strong>{{ selectedDoctor.name }}</strong>?
                 </p>
 
