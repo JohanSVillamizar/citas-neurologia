@@ -32,13 +32,48 @@ const dayNames = {
   6: 'Sábado',
 };
 
-// Ordena los horarios de lunes a domingo
-const orderedSchedules = computed(() =>
-  [...form.schedules].sort((a, b) => a.day_of_week - b.day_of_week)
+// Agrupa horarios por día (permitiendo múltiples jornadas por día)
+const schedulesByDay = computed(() => {
+  const grouped = {};
+  for (let i = 0; i <= 6; i++) {
+    grouped[i] = form.schedules.filter(s => s.day_of_week === i);
+  }
+  return grouped;
+});
+
+// Detecta qué días tienen al menos un horario
+const daysWithSchedules = computed(() =>
+  new Set(form.schedules.map(s => s.day_of_week))
+);
+
+// Días disponibles para agregar nuevas jornadas (todos los días)
+const availableDays = computed(() =>
+  Object.entries(dayNames).map(([day, name]) => ({ value: parseInt(day), label: name }))
 );
 
 const submit = () => {
   form.put(route('doctors.update', props.doctor.id));
+};
+
+// Agregar nueva jornada a un día
+const addSchedule = (dayOfWeek) => {
+  form.schedules.push({
+    id: null,
+    day_of_week: dayOfWeek,
+    start_time: '08:00',
+    end_time: '17:00',
+    is_active: true,
+  });
+};
+
+// Eliminar jornada (solo las nuevas, sin ID)
+const removeSchedule = (index) => {
+  const schedule = form.schedules[index];
+  if (schedule.id === null) {
+    form.schedules.splice(index, 1);
+  } else {
+    alert('No puedes eliminar horarios existentes. Desactívalos en su lugar.');
+  }
 };
 </script>
 
@@ -114,54 +149,88 @@ const submit = () => {
           <!-- Horario -->
           <section>
             <h2 class="text-xl font-semibold mb-4">Horario de Atención</h2>
-            <p class="text-gray-600 mb-3 text-sm">
-              Configura los días y rangos de hora en los que el médico atiende. Marca “Activo” para habilitar el día.
+            <p class="text-gray-600 mb-4 text-sm">
+              Configura los días y rangos de hora en los que el médico atiende. Un doctor puede trabajar múltiples jornadas en el mismo día.
             </p>
-            <div class="overflow-x-auto">
-              <table class="min-w-full border border-gray-200 rounded-lg">
-                <thead class="bg-gray-50">
-                  <tr>
-                    <th class="px-4 py-2 text-left text-sm font-semibold text-gray-700">Día</th>
-                    <th class="px-4 py-2 text-left text-sm font-semibold text-gray-700">Hora inicio</th>
-                    <th class="px-4 py-2 text-left text-sm font-semibold text-gray-700">Hora fin</th>
-                    <th class="px-4 py-2 text-center text-sm font-semibold text-gray-700">Activo</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr
-                    v-for="(schedule, index) in orderedSchedules"
-                    :key="schedule.id ?? index"
-                    class="border-t"
+
+            <!-- Por cada día de la semana -->
+            <div class="space-y-4">
+              <div
+                v-for="day in [0, 1, 2, 3, 4, 5, 6]"
+                :key="day"
+                class="border rounded-lg p-4 bg-gray-50"
+              >
+                <!-- Encabezado del día -->
+                <div class="flex items-center justify-between mb-3">
+                  <h3 class="text-lg font-semibold">{{ dayNames[day] }}</h3>
+                  <button
+                    type="button"
+                    @click="addSchedule(day)"
+                    class="px-3 py-1 bg-blue-600 text-white text-sm font-semibold rounded-lg hover:bg-blue-700 transition"
                   >
-                    <td class="px-4 py-2 text-sm">
-                      {{ dayNames[schedule.day_of_week] }}
-                    </td>
-                    <td class="px-4 py-2 text-sm">
+                    + Agregar jornada
+                  </button>
+                </div>
+
+                <!-- Jornadas del día -->
+                <div v-if="schedulesByDay[day].length > 0" class="space-y-3">
+                  <div
+                    v-for="(schedule, idx) in schedulesByDay[day]"
+                    :key="schedule.id ?? idx"
+                    class="bg-white border rounded p-4 flex items-end gap-4"
+                  >
+                    <!-- Hora inicio -->
+                    <div class="flex-1">
+                      <label class="block text-xs font-semibold text-gray-600 mb-1">Hora inicio</label>
                       <input
                         v-model="schedule.start_time"
                         type="time"
-                        class="px-2 py-1 border rounded w-28"
+                        class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
                         :disabled="!schedule.is_active"
                       />
-                    </td>
-                    <td class="px-4 py-2 text-sm">
+                    </div>
+
+                    <!-- Hora fin -->
+                    <div class="flex-1">
+                      <label class="block text-xs font-semibold text-gray-600 mb-1">Hora fin</label>
                       <input
                         v-model="schedule.end_time"
                         type="time"
-                        class="px-2 py-1 border rounded w-28"
+                        class="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500"
                         :disabled="!schedule.is_active"
                       />
-                    </td>
-                    <td class="px-4 py-2 text-center">
+                    </div>
+
+                    <!-- Checkbox activo -->
+                    <div class="flex items-center gap-2">
                       <input
                         v-model="schedule.is_active"
                         type="checkbox"
                         class="h-4 w-4 text-blue-600"
+                        :id="`active-${schedule.id}-${idx}`"
                       />
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
+                      <label :for="`active-${schedule.id}-${idx}`" class="text-xs font-semibold text-gray-600">
+                        Activo
+                      </label>
+                    </div>
+
+                    <!-- Botón eliminar (solo para nuevos) -->
+                    <button
+                      v-if="schedule.id === null"
+                      type="button"
+                      @click="removeSchedule(form.schedules.indexOf(schedule))"
+                      class="px-3 py-2 bg-red-600 text-white text-sm font-semibold rounded-lg hover:bg-red-700 transition"
+                    >
+                      Eliminar
+                    </button>
+                  </div>
+                </div>
+
+                <!-- Mensaje si no hay jornadas -->
+                <div v-else class="text-sm text-gray-500 italic">
+                  Sin jornadas configuradas
+                </div>
+              </div>
             </div>
           </section>
 
