@@ -21,17 +21,15 @@ class AppointmentController extends Controller
     {
         $query = Appointment::with('doctor');
 
-        if ($request->has('doctor_slug')) {
-            $query->whereHas('doctor', function ($q) use ($request) {
-                $q->where('slug', $request->doctor_slug);
-            });
-        }
-
+        // Filtrar por status si viene en el request
         if ($request->has('status')) {
             $query->where('status', $request->status);
         }
 
-        $appointments = $query->orderBy('appointment_date', 'desc')->get();
+        $appointments = $query
+            ->orderBy('appointment_date', 'desc')
+            ->paginate(10)
+            ->withQueryString();
 
         return Inertia::render('Appointments/Index', [
             'appointments' => $appointments,
@@ -44,20 +42,18 @@ class AppointmentController extends Controller
 
         if ($request->has('doctor')) {
             $doctor = Doctor::where('slug', $request->doctor)
-                ->with('schedules') // ← IMPORTANTE
+                ->with('schedules')
                 ->first();
         }
 
         return Inertia::render('Appointments/Create', [
             'doctors' => Doctor::where('is_active', true)
-                ->with('schedules') // ← IMPORTANTE
+                ->with('schedules')
                 ->get(),
-
             'selectedDoctor' => $doctor,
             'appointmentDate' => $request->start,
         ]);
     }
-
 
     public function store(StoreAppointmentRequest $request)
     {
@@ -65,7 +61,7 @@ class AppointmentController extends Controller
 
         // Validar que no haya conflicto de horario
         $appointmentDate = Carbon::parse($validated['appointment_date']);
-        $duration = (int) ($validated['duration_minutes'] ?? config('app.appointment_duration'));
+        $duration = (int) ($validated['duration_minutes'] ?? config('app.appointment_duration', 30));
 
         $conflict = Appointment::where('doctor_id', $validated['doctor_id'])
             ->whereIn('status', ['pendiente', 'confirmada'])
@@ -100,7 +96,6 @@ class AppointmentController extends Controller
             Log::info('Correo enviado exitosamente a: ' . $appointment->patient_email);
         } catch (\Exception $e) {
             Log::error('Error enviando correo de cita: ' . $e->getMessage());
-            // No fallar si el correo no se envía, pero guardar la cita
         }
 
         return redirect()->route('welcome')
@@ -118,6 +113,8 @@ class AppointmentController extends Controller
 
     public function edit(Appointment $appointment)
     {
+        $appointment->load('doctor');
+
         return Inertia::render('Appointments/Edit', [
             'appointment' => $appointment,
             'doctors' => Doctor::where('is_active', true)->get(),
@@ -149,8 +146,13 @@ class AppointmentController extends Controller
         $appointment->update(['status' => 'confirmada']);
         $appointment->load('doctor');
 
-        Mail::to($appointment->patient_email)
-            ->send(new AppointmentConfirmed($appointment));
+        try {
+            Mail::to($appointment->patient_email)
+                ->send(new AppointmentConfirmed($appointment));
+            Log::info('Correo de confirmación enviado a: ' . $appointment->patient_email);
+        } catch (\Exception $e) {
+            Log::error('Error enviando correo de confirmación: ' . $e->getMessage());
+        }
 
         return back()->with('success', 'Cita confirmada y correo enviado al paciente');
     }
@@ -167,9 +169,25 @@ class AppointmentController extends Controller
         ]);
         $appointment->load('doctor');
 
-        Mail::to($appointment->patient_email)
-            ->send(new AppointmentRejected($appointment));
+        try {
+            Mail::to($appointment->patient_email)
+                ->send(new AppointmentRejected($appointment));
+            Log::info('Correo de rechazo enviado a: ' . $appointment->patient_email);
+        } catch (\Exception $e) {
+            Log::error('Error enviando correo de rechazo: ' . $e->getMessage());
+        }
 
         return back()->with('success', 'Cita rechazada y correo enviado al paciente');
+    }
+
+    public function complete(Appointment $appointment)
+    {
+        if ($appointment->status !== 'confirmada') {
+            return back()->withErrors(['error' => 'Solo se pueden completar citas confirmadas']);
+        }
+
+        $appointment->update(['status' => 'completada']);
+
+        return back()->with('success', 'Cita marcada como completada');
     }
 }
