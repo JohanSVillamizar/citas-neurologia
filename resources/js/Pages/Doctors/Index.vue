@@ -32,7 +32,13 @@ function closeConfirm() {
                 </Link>
             </div>
 
-            <h1 class="text-3xl font-bold mb-8">Gestión de Doctores</h1>
+            <div class="flex items-center justify-between mb-8">
+                <h1 class="text-3xl font-bold">Gestión de Doctores</h1>
+                <Link :href="route('doctors.create')"
+                    class="px-6 py-2 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 transition">
+                    + Crear Nuevo Doctor
+                </Link>
+            </div>
 
             <div class="bg-white p-6 rounded-xl shadow-lg border">
 
