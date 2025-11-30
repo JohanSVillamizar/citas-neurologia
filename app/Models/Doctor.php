@@ -46,7 +46,7 @@ class Doctor extends Model
 
     public function getRouteKeyName()
     {
-        return 'slug';
+        return request()->is('doctors*') ? 'id' : 'slug';
     }
 
     public function user()
