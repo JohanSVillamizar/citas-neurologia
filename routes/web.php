@@ -27,8 +27,17 @@ Route::middleware([
 ])->group(function () {
     // Panel y gestión interna
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
-    Route::resource('doctors', DoctorController::class)->except(['show']);
+    Route::resource('doctors', DoctorController::class);
+    
+        // Activar / desactivar médicos (reemplaza eliminación)
+    Route::post('/doctors/{doctor}/toggle', [DoctorController::class, 'toggle'])
+        ->name('doctors.toggle');
+
     Route::resource('appointments', AppointmentController::class)->except(['create', 'store']);
     Route::post('/appointments/{appointment}/accept', [AppointmentController::class, 'accept'])->name('appointments.accept');
     Route::post('/appointments/{appointment}/reject', [AppointmentController::class, 'reject'])->name('appointments.reject');
+
+        // Futuro (flujo completo): completar cita
+    Route::post('/appointments/{appointment}/complete', [AppointmentController::class, 'complete'])
+        ->name('appointments.complete');
 });

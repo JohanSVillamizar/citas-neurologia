@@ -11,7 +11,7 @@ class DashboardController extends Controller
 {
     public function index(Request $request)
     {
-        $query = Appointment::with('doctor');
+        $query = Appointment::query();
 
         if ($request->has('doctor_slug')) {
             $query->whereHas('doctor', function ($q) use ($request) {
@@ -19,21 +19,16 @@ class DashboardController extends Controller
             });
         }
 
-        $pending = (clone $query)->where('status', 'pendiente')
-            ->orderBy('appointment_date', 'asc')
-            ->get();
-
-        $confirmed = (clone $query)->where('status', 'confirmada')
-            ->where('appointment_date', '>=', now())
-            ->orderBy('appointment_date', 'asc')
-            ->get();
-
-        $doctors = Doctor::where('is_active', true)->get();
+        $stats = [
+            'pending'   => (clone $query)->where('status', 'pendiente')->count(),
+            'confirmed' => (clone $query)->where('status', 'confirmada')->count(),
+            'completed' => (clone $query)->where('status', 'completada')->count(),
+            'rejected'  => (clone $query)->where('status', 'rechazada')->count(),
+        ];
 
         return Inertia::render('Dashboard', [
-            'pendingAppointments' => $pending,
-            'confirmedAppointments' => $confirmed,
-            'doctors' => $doctors,
+            'stats' => $stats,
+            'doctors' => Doctor::where('is_active', true)->get(),
         ]);
     }
 }
