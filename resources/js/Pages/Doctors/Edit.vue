@@ -52,7 +52,7 @@ const availableDays = computed(() =>
 );
 
 const submit = () => {
-  form.put(route('doctors.update', props.doctor.id));
+  form.put(route('doctors.update', props.doctor.slug));
 };
 
 // Agregar nueva jornada a un día

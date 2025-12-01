@@ -43,7 +43,7 @@ class Appointment extends Model
 
     public function getRouteKeyName()
     {
-        return request()->is('appointments*') ? 'id' : 'slug';
+        return 'slug';
     }
 
     public function doctor()

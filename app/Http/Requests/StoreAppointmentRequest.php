@@ -21,11 +21,11 @@ class StoreAppointmentRequest extends FormRequest
      */
     public function rules(): array
     {
-       return [
+        return [
             'doctor_id' => 'required|exists:doctors,id',
             'patient_name' => 'required|string|max:255',
             'patient_email' => 'required|email|max:255',
-            'patient_phone' => 'required|string|max:20',
+            'patient_phone' => 'required|regex:/^\d{3}-\d{3}-\d{4}$/',
             'patient_id_number' => 'required|string|max:20',
             'patient_birth_date' => 'required|date|before:today',
             'reason' => 'nullable|string|max:500',
@@ -33,7 +33,7 @@ class StoreAppointmentRequest extends FormRequest
         ];
     }
 
-        public function messages(): array
+    public function messages(): array
     {
         return [
             'doctor_id.required' => 'Debe seleccionar un médico',
@@ -42,6 +42,7 @@ class StoreAppointmentRequest extends FormRequest
             'patient_email.required' => 'El correo electrónico es obligatorio',
             'patient_email.email' => 'Debe ingresar un correo válido',
             'patient_phone.required' => 'El teléfono es obligatorio',
+            'patient_phone.regex' => 'El teléfono debe tener el formato: 123-456-7890',
             'patient_id_number.required' => 'El número de identificación es obligatorio',
             'patient_birth_date.required' => 'La fecha de nacimiento es obligatoria',
             'patient_birth_date.before' => 'La fecha de nacimiento debe ser anterior a hoy',

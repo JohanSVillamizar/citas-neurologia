@@ -50,7 +50,7 @@ const closeModal = () => {
 
 const acceptAppointment = () => {
     router.post(
-        route('appointments.accept', props.appointment.id),
+        route('appointments.accept', props.appointment.slug),
         {},
         { onSuccess: closeModal }
     );
@@ -58,7 +58,7 @@ const acceptAppointment = () => {
 
 const rejectAppointment = () => {
     router.post(
-        route('appointments.reject', props.appointment.id),
+        route('appointments.reject', props.appointment.slug),
         {},
         { onSuccess: closeModal }
     );
@@ -66,7 +66,7 @@ const rejectAppointment = () => {
 
 const completeAppointment = () => {
     router.post(
-        route('appointments.complete', props.appointment.id),
+        route('appointments.complete', props.appointment.slug),
         {},
         { onSuccess: closeModal }
     );
@@ -75,6 +75,7 @@ const completeAppointment = () => {
 
 <template>
     <AppLayout :title="`Cita de ${appointment.patient_name}`">
+
         <Head :title="`Cita - ${appointment.patient_name}`" />
 
         <div class="py-10 max-w-4xl mx-auto sm:px-6 lg:px-8">
@@ -83,7 +84,7 @@ const completeAppointment = () => {
             <div class="mb-6">
                 <Link :href="route('appointments.index')"
                     class="inline-flex items-center px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200">
-                    ← Volver a citas
+                ← Volver a citas
                 </Link>
             </div>
 
@@ -184,7 +185,8 @@ const completeAppointment = () => {
                                 </div>
                                 <div>
                                     <p class="text-sm text-gray-600 font-semibold">Especialidad</p>
-                                    <p class="text-xl font-bold text-gray-800 mt-1">{{ appointment.doctor.specialty }}</p>
+                                    <p class="text-xl font-bold text-gray-800 mt-1">{{ appointment.doctor.specialty }}
+                                    </p>
                                 </div>
                                 <div>
                                     <p class="text-sm text-gray-600 font-semibold">Email</p>
@@ -217,28 +219,30 @@ const completeAppointment = () => {
 
                     <!-- BOTONES DE ACCIÓN -->
                     <section class="flex flex-wrap gap-4 pt-6 border-t">
+                        <Link :href="route('dashboard')"
+                            class="px-6 py-3 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 transition">
+                        ← Ir al Dashboard
+                        </Link>
+
                         <Link :href="route('appointments.index')"
                             class="px-6 py-3 bg-gray-200 text-gray-700 font-semibold rounded-lg hover:bg-gray-300 transition">
-                            Volver al listado
+                        Volver al listado
                         </Link>
 
                         <!-- Aceptar (pendiente) -->
-                        <button v-if="appointment.status === 'pendiente'"
-                            @click="openModal('accept')"
+                        <button v-if="appointment.status === 'pendiente'" @click="openModal('accept')"
                             class="px-6 py-3 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 transition">
                             ✓ Aceptar cita
                         </button>
 
                         <!-- Rechazar (pendiente) -->
-                        <button v-if="appointment.status === 'pendiente'"
-                            @click="openModal('reject')"
+                        <button v-if="appointment.status === 'pendiente'" @click="openModal('reject')"
                             class="px-6 py-3 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition">
                             ✗ Rechazar cita
                         </button>
 
                         <!-- Completar (confirmada) -->
-                        <button v-if="appointment.status === 'confirmada'"
-                            @click="openModal('complete')"
+                        <button v-if="appointment.status === 'confirmada'" @click="openModal('complete')"
                             class="px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition">
                             ✓✓ Completar cita
                         </button>
@@ -256,15 +260,15 @@ const completeAppointment = () => {
                 <h2 class="text-xl font-bold mb-2">
                     {{
                         modalAction === 'accept' ? 'Aceptar cita'
-                        : modalAction === 'reject' ? 'Rechazar cita'
-                        : 'Completar cita'
+                            : modalAction === 'reject' ? 'Rechazar cita'
+                                : 'Completar cita'
                     }}
                 </h2>
                 <p class="text-gray-600 mb-6">
                     {{
                         modalAction === 'accept' ? '¿Confirmar esta cita? Se enviará notificación al paciente.'
-                        : modalAction === 'reject' ? '¿Rechazar esta cita? Se notificará al paciente.'
-                        : '¿Marcar esta cita como completada?'
+                            : modalAction === 'reject' ? '¿Rechazar esta cita? Se notificará al paciente.'
+                                : '¿Marcar esta cita como completada?'
                     }}
                 </p>
 

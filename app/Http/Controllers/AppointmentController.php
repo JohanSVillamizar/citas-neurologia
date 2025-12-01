@@ -70,10 +70,10 @@ class AppointmentController extends Controller
                     $appointmentDate,
                     $appointmentDate->copy()->addMinutes($duration)
                 ])
-                ->orWhere(function ($q) use ($appointmentDate) {
-                    $q->where('appointment_date', '<=', $appointmentDate)
-                    ->whereRaw('(appointment_date + (duration_minutes || \' minutes\')::interval) > ?', [$appointmentDate]);
-                });
+                    ->orWhere(function ($q) use ($appointmentDate) {
+                        $q->where('appointment_date', '<=', $appointmentDate)
+                            ->whereRaw('(appointment_date + (duration_minutes || \' minutes\')::interval) > ?', [$appointmentDate]);
+                    });
             })
             ->exists();
 
@@ -85,6 +85,7 @@ class AppointmentController extends Controller
 
         $validated['duration_minutes'] = $duration;
         $validated['status'] = 'pendiente';
+        // ❌ NO agregar slug aquí - se genera automáticamente en el modelo
 
         // Crear la cita
         $appointment = Appointment::create($validated);

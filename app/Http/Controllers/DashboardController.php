@@ -9,26 +9,38 @@ use Inertia\Inertia;
 
 class DashboardController extends Controller
 {
-    public function index(Request $request)
+    public function index()
     {
-        $query = Appointment::query();
-
-        if ($request->has('doctor_slug')) {
-            $query->whereHas('doctor', function ($q) use ($request) {
-                $q->where('slug', $request->doctor_slug);
-            });
-        }
-
+        // Estadísticas generales
         $stats = [
-            'pending'   => (clone $query)->where('status', 'pendiente')->count(),
-            'confirmed' => (clone $query)->where('status', 'confirmada')->count(),
-            'completed' => (clone $query)->where('status', 'completada')->count(),
-            'rejected'  => (clone $query)->where('status', 'rechazada')->count(),
+            'pending' => Appointment::where('status', 'pendiente')->count(),
+            'confirmed' => Appointment::where('status', 'confirmada')->count(),
+            'completed' => Appointment::where('status', 'completada')->count(),
+            'rejected' => Appointment::where('status', 'rechazada')->count(),
         ];
+
+        // Doctores activos
+        $doctors = Doctor::where('is_active', true)->get();
+
+        // Citas pendientes (próximas)
+        $pendingAppointments = Appointment::where('status', 'pendiente')
+            ->with('doctor')
+            ->select('id', 'slug', 'doctor_id', 'patient_name', 'appointment_date')
+            ->orderBy('appointment_date', 'asc')
+            ->get();
+
+        // Citas confirmadas (próximas)
+        $confirmedAppointments = Appointment::where('status', 'confirmada')
+            ->with('doctor')
+            ->select('id', 'slug', 'doctor_id', 'patient_name', 'appointment_date')
+            ->orderBy('appointment_date', 'asc')
+            ->get();
 
         return Inertia::render('Dashboard', [
             'stats' => $stats,
-            'doctors' => Doctor::where('is_active', true)->get(),
+            'doctors' => $doctors,
+            'pendingAppointments' => $pendingAppointments,
+            'confirmedAppointments' => $confirmedAppointments,
         ]);
     }
 }

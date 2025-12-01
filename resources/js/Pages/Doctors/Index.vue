@@ -54,7 +54,7 @@ function closeConfirm() {
                     </thead>
 
                     <tbody class="divide-y divide-gray-200 bg-white">
-                        <tr v-for="doctor in doctors.data" :key="doctor.id">
+                        <tr v-for="doctor in doctors.data" :key="doctor.slug">
 
                             <td class="px-4 py-4">
                                 <img v-if="doctor.photo" :src="doctor.photo"
@@ -80,17 +80,19 @@ function closeConfirm() {
                             </td>
 
                             <td class="px-4 py-4 flex gap-3">
-                                <Link :href="`/doctors/${doctor.id}/edit`"
+                                <!-- Cambio 1: Usar slug en editar -->
+                                <Link :href="route('doctors.edit', doctor.slug)"
                                     class="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
                                 Editar
                                 </Link>
 
-                                <Link :href="`/doctors/${doctor.id}`"
+                                <!-- Cambio 2: Usar slug en ver -->
+                                <Link :href="route('doctors.show', doctor.slug)"
                                     class="px-3 py-1.5 bg-gray-600 text-white rounded-lg hover:bg-gray-700">
                                 Ver
                                 </Link>
 
-                                <!-- Aquí va el popup -->
+                                <!-- Cambio 3: Usar slug en toggle (botón inactivar/activar) -->
                                 <button @click="openConfirm(doctor)" class="px-3 py-1.5 rounded-lg text-white" :class="doctor.is_active
                                     ? 'bg-red-600 hover:bg-red-700'
                                     : 'bg-green-600 hover:bg-green-700'">
@@ -135,7 +137,8 @@ function closeConfirm() {
                         Cancelar
                     </button>
 
-                    <Link as="button" method="post" :href="`/doctors/${selectedDoctor.id}/toggle`"
+                    <!-- Cambio 4: Usar slug en toggle del modal -->
+                    <Link as="button" method="post" :href="route('doctors.toggle', selectedDoctor.slug)"
                         class="px-4 py-2 rounded text-white"
                         :class="selectedDoctor.is_active ? 'bg-red-600 hover:bg-red-700' : 'bg-green-600 hover:bg-green-700'"
                         @click="closeConfirm">

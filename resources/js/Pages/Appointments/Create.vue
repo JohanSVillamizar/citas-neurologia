@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
-import { router } from '@inertiajs/vue3'
+import { router, usePage } from '@inertiajs/vue3'
 import axios from 'axios'
 import Swal from 'sweetalert2'
 
@@ -9,6 +9,8 @@ const props = defineProps({
   doctors: Array
 })
 
+const page = usePage()
+
 function formatLocalDate(date) {
   const y = date.getFullYear()
   const m = String(date.getMonth() + 1).padStart(2, '0')
@@ -16,12 +18,21 @@ function formatLocalDate(date) {
   return `${y}-${m}-${d}`
 }
 
-const selectedDate = ref(formatLocalDate(new Date()))
-const selectedSlot = ref('')
+const routeParams = new URLSearchParams(window.location.search);
+const startParam = routeParams.get('start');
+
+const selectedDate = ref(startParam ? startParam.split('T')[0] : formatLocalDate(new Date()))
+const selectedSlot = ref(startParam ? startParam.split('T')[1]?.slice(0, 5) : '')
 const currentMonth = ref(new Date())
 const slots = ref([])
 const loading = ref(false)
 const submitting = ref(false)
+
+if (startParam) {
+  const paramDate = new Date(startParam);
+  currentMonth.value = new Date(paramDate.getFullYear(), paramDate.getMonth(), 1);
+}
+
 
 const form = ref({
   patient_name: '',
@@ -177,45 +188,70 @@ const goBack = () => router.get('/')
           </div>
 
           <div class="space-y-4">
+            <!-- NOMBRE -->
             <div>
               <label class="block text-sm font-semibold text-gray-700 mb-2">Nombre completo *</label>
               <input v-model="form.patient_name" type="text" required
                 class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                 placeholder="Juan Pérez González" />
+              <div v-if="page.props.errors?.patient_name" class="text-sm text-red-600 mt-1">
+                {{ page.props.errors.patient_name }}
+              </div>
             </div>
 
+            <!-- EMAIL -->
             <div>
               <label class="block text-sm font-semibold text-gray-700 mb-2">Correo electrónico *</label>
               <input v-model="form.patient_email" type="email" required
                 class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                 placeholder="correo@ejemplo.com" />
+              <div v-if="page.props.errors?.patient_email" class="text-sm text-red-600 mt-1">
+                {{ page.props.errors.patient_email }}
+              </div>
             </div>
 
+            <!-- TELÉFONO -->
             <div>
               <label class="block text-sm font-semibold text-gray-700 mb-2">Teléfono *</label>
               <input v-model="form.patient_phone" type="tel" required
                 class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                placeholder="3001234567" />
+                placeholder="123-456-7890" 
+                pattern="\d{3}-\d{3}-\d{4}" />
+              <div v-if="page.props.errors?.patient_phone" class="text-sm text-red-600 mt-1">
+                {{ page.props.errors.patient_phone }}
+              </div>
             </div>
 
+            <!-- ID NUMBER -->
             <div>
               <label class="block text-sm font-semibold text-gray-700 mb-2">Número de identificación *</label>
               <input v-model="form.patient_id_number" type="text" required
                 class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                 placeholder="1234567890" />
+              <div v-if="page.props.errors?.patient_id_number" class="text-sm text-red-600 mt-1">
+                {{ page.props.errors.patient_id_number }}
+              </div>
             </div>
 
+            <!-- BIRTH DATE -->
             <div>
               <label class="block text-sm font-semibold text-gray-700 mb-2">Fecha de nacimiento *</label>
               <input v-model="form.patient_birth_date" type="date" required :max="maxBirthDate"
                 class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500" />
+              <div v-if="page.props.errors?.patient_birth_date" class="text-sm text-red-600 mt-1">
+                {{ page.props.errors.patient_birth_date }}
+              </div>
             </div>
 
+            <!-- MOTIVO -->
             <div>
               <label class="block text-sm font-semibold text-gray-700 mb-2">Motivo de la cita (opcional)</label>
               <textarea v-model="form.reason" rows="3"
                 class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 resize-none"
                 placeholder="Describe brevemente el motivo de tu consulta..."></textarea>
+              <div v-if="page.props.errors?.reason" class="text-sm text-red-600 mt-1">
+                {{ page.props.errors.reason }}
+              </div>
             </div>
 
             <button @click="handleSubmit" :disabled="!selectedSlot || submitting"
@@ -311,10 +347,8 @@ const goBack = () => router.get('/')
               </div>
             </div>
           </div>
-
         </div>
       </div>
-
     </div>
   </div>
 </template>

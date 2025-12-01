@@ -29,7 +29,7 @@ const closeModal = () => {
 
 const acceptAppointment = () => {
     router.post(
-        route('appointments.accept', selectedAppointment.value.id),
+        route('appointments.accept', selectedAppointment.value.slug),
         {},
         { onSuccess: closeModal }
     );
@@ -37,7 +37,7 @@ const acceptAppointment = () => {
 
 const rejectAppointment = () => {
     router.post(
-        route('appointments.reject', selectedAppointment.value.id),
+        route('appointments.reject', selectedAppointment.value.slug),
         {},
         { onSuccess: closeModal }
     );
@@ -45,7 +45,7 @@ const rejectAppointment = () => {
 
 const completeAppointment = () => {
     router.post(
-        route('appointments.complete', selectedAppointment.value.id),
+        route('appointments.complete', selectedAppointment.value.slug),
         {},
         { onSuccess: closeModal }
     );
@@ -184,7 +184,7 @@ const formatTime = (date) => {
                                         </button>
 
                                         <!-- Ver detalles -->
-                                        <Link :href="route('appointments.show', appointment.id)"
+                                        <Link :href="route('appointments.show', appointment.slug)"
                                             class="px-3 py-1 bg-gray-600 text-white text-xs font-semibold rounded hover:bg-gray-700 transition">
                                             Ver
                                         </Link>

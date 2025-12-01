@@ -36,8 +36,5 @@ Route::middleware([
     Route::resource('appointments', AppointmentController::class)->except(['create', 'store']);
     Route::post('/appointments/{appointment}/accept', [AppointmentController::class, 'accept'])->name('appointments.accept');
     Route::post('/appointments/{appointment}/reject', [AppointmentController::class, 'reject'])->name('appointments.reject');
-
-        // Futuro (flujo completo): completar cita
-    Route::post('/appointments/{appointment}/complete', [AppointmentController::class, 'complete'])
-        ->name('appointments.complete');
+    Route::post('/appointments/{appointment}/complete', [AppointmentController::class, 'complete'])->name('appointments.complete');
 });
