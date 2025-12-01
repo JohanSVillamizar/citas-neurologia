@@ -35,17 +35,16 @@ const statsSchedules = computed(() => ({
 
 <template>
   <AppLayout :title="doctor.name">
+
     <Head :title="`Ver ${doctor.name}`" />
 
     <div class="py-10 max-w-5xl mx-auto sm:px-6 lg:px-8">
 
       <!-- Volver -->
       <div class="mb-6">
-        <Link
-          :href="route('doctors.index')"
-          class="inline-flex items-center px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
-        >
-          ← Volver al listado
+        <Link :href="route('doctors.index')"
+          class="inline-flex items-center px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200">
+        ← Volver al listado
         </Link>
       </div>
 
@@ -55,16 +54,10 @@ const statsSchedules = computed(() => ({
         <div class="bg-gradient-to-r from-blue-600 to-indigo-600 p-8 text-white">
           <div class="flex items-center gap-6">
             <div>
-              <img
-                v-if="doctor.photo"
-                :src="doctor.photo"
-                :alt="doctor.name"
-                class="w-32 h-32 object-cover rounded-full border-4 border-white shadow-lg"
-              />
-              <div
-                v-else
-                class="w-32 h-32 bg-white bg-opacity-20 rounded-full flex items-center justify-center text-5xl font-bold"
-              >
+              <img v-if="doctor.photo" :src="doctor.photo" :alt="doctor.name"
+                class="w-32 h-32 object-cover rounded-full border-4 border-white shadow-lg" />
+              <div v-else
+                class="w-32 h-32 bg-white bg-opacity-20 rounded-full flex items-center justify-center text-5xl font-bold">
                 {{ doctor.name.charAt(0) }}
               </div>
             </div>
@@ -72,14 +65,12 @@ const statsSchedules = computed(() => ({
               <h1 class="text-4xl font-bold mb-2">{{ doctor.name }}</h1>
               <p class="text-xl text-blue-100 mb-3">{{ doctor.specialty }}</p>
               <div class="flex gap-4 text-sm">
-                <span
-                  :class="[
-                    'px-3 py-1 rounded-full',
-                    doctor.is_active
-                      ? 'bg-green-500 text-white'
-                      : 'bg-red-500 text-white'
-                  ]"
-                >
+                <span :class="[
+                  'px-3 py-1 rounded-full',
+                  doctor.is_active
+                    ? 'bg-green-500 text-white'
+                    : 'bg-red-500 text-white'
+                ]">
                   {{ doctor.is_active ? '✓ Activo' : '✗ Inactivo' }}
                 </span>
               </div>
@@ -144,11 +135,8 @@ const statsSchedules = computed(() => ({
                   </tr>
                 </thead>
                 <tbody>
-                  <tr
-                    v-for="schedule in schedulesByDay"
-                    :key="schedule.id"
-                    class="border-t hover:bg-gray-50 transition"
-                  >
+                  <tr v-for="schedule in schedulesByDay" :key="schedule.id"
+                    class="border-t hover:bg-gray-50 transition">
                     <td class="px-4 py-3 text-sm font-medium">
                       {{ daysOfWeek[schedule.day_of_week] }}
                     </td>
@@ -159,14 +147,12 @@ const statsSchedules = computed(() => ({
                       {{ schedule.end_time?.slice(0, 5) || '—' }}
                     </td>
                     <td class="px-4 py-3 text-center">
-                      <span
-                        :class="[
-                          'px-3 py-1 rounded-full text-xs font-semibold',
-                          schedule.is_active
-                            ? 'bg-green-100 text-green-700'
-                            : 'bg-gray-100 text-gray-700'
-                        ]"
-                      >
+                      <span :class="[
+                        'px-3 py-1 rounded-full text-xs font-semibold',
+                        schedule.is_active
+                          ? 'bg-green-100 text-green-700'
+                          : 'bg-gray-100 text-gray-700'
+                      ]">
                         {{ schedule.is_active ? '✓ Activo' : '✗ Inactivo' }}
                       </span>
                     </td>
@@ -178,18 +164,15 @@ const statsSchedules = computed(() => ({
 
           <!-- Acciones -->
           <section class="flex gap-4 pt-4">
-            <Link
-              :href="route('doctors.edit', doctor.id)"
-              class="px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition"
-            >
-              Editar Doctor
+            <Link :href="route('doctors.edit', doctor.slug)"
+              class="px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition">
+            Editar Doctor
             </Link>
 
-            <Link
-              :href="route('doctors.index')"
-              class="px-6 py-3 bg-gray-200 text-gray-700 font-semibold rounded-lg hover:bg-gray-300 transition"
-            >
-              Volver
+
+            <Link :href="route('doctors.index')"
+              class="px-6 py-3 bg-gray-200 text-gray-700 font-semibold rounded-lg hover:bg-gray-300 transition">
+            Volver
             </Link>
           </section>
 

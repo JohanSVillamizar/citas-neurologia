@@ -38,6 +38,7 @@ class UpdateDoctorRequest extends FormRequest
                 'string',
                 'regex:/^\d{3}-\d{3}-\d{4}$/', // Formato: 300-123-4567
             ],
+            'photo' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
             'email' => 'sometimes|email|unique:doctors,email,' . $doctorId,
             'is_active' => 'boolean',
         ];
@@ -51,6 +52,9 @@ class UpdateDoctorRequest extends FormRequest
         return [
             'license_number.regex' => 'El número de licencia debe tener el formato MED- seguido de 6 dígitos. Ej: MED-123456',
             'phone.regex' => 'El teléfono debe tener el formato XXX-XXX-XXXX. Ej: 300-123-4567',
+            'photo.image' => 'El archivo debe ser una imagen.',
+            'photo.mimes' => 'La foto debe ser JPG, PNG o JPEG.',
+            'photo.max' => 'La foto no debe exceder 2MB.',
             'name.required' => 'El nombre del doctor es requerido.',
             'specialty.required' => 'La especialidad es requerida.',
             'email.required' => 'El correo es requerido.',

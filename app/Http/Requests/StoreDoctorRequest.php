@@ -37,6 +37,7 @@ class StoreDoctorRequest extends FormRequest
                 'regex:/^\d{3}-\d{3}-\d{4}$/', // Formato: 300-123-4567
             ],
             'email' => 'required|email|unique:doctors,email',
+            'photo' => 'nullable|image|mimes:jpeg,png,jpg|max:2048',
             'is_active' => 'boolean',
         ];
     }
@@ -49,6 +50,9 @@ class StoreDoctorRequest extends FormRequest
         return [
             'license_number.regex' => 'El número de licencia debe tener el formato MED- seguido de 6 dígitos. Ej: MED-123456',
             'phone.regex' => 'El teléfono debe tener el formato XXX-XXX-XXXX. Ej: 300-123-4567',
+            'photo.image' => 'El archivo debe ser una imagen.',
+            'photo.mimes' => 'La foto debe ser JPG, PNG o JPEG.',
+            'photo.max' => 'La foto no debe exceder 2MB.',
             'name.required' => 'El nombre del doctor es requerido.',
             'specialty.required' => 'La especialidad es requerida.',
             'email.required' => 'El correo es requerido.',
