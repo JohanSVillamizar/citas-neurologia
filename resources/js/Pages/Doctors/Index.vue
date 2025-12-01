@@ -36,73 +36,77 @@ function closeConfirm() {
                 <h1 class="text-3xl font-bold">Gestión de Doctores</h1>
                 <Link :href="route('doctors.create')"
                     class="px-6 py-2 bg-green-600 text-white font-semibold rounded-lg hover:bg-green-700 transition">
-                    + Crear Nuevo Doctor
+                + Crear Nuevo Doctor
                 </Link>
             </div>
 
             <div class="bg-white p-6 rounded-xl shadow-lg border">
 
-                <table class="min-w-full divide-y divide-gray-200">
-                    <thead class="bg-gray-50">
-                        <tr>
-                            <th class="px-4 py-3">Foto</th>
-                            <th class="px-4 py-3">Nombre</th>
-                            <th class="px-4 py-3">Especialidad</th>
-                            <th class="px-4 py-3">Estado</th>
-                            <th class="px-4 py-3">Acciones</th>
-                        </tr>
-                    </thead>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-4 py-3">Foto</th>
+                                <th class="px-4 py-3">Nombre</th>
+                                <th class="px-4 py-3">Especialidad</th>
+                                <th class="px-4 py-3">Estado</th>
+                                <th class="px-4 py-3">Acciones</th>
+                            </tr>
+                        </thead>
 
-                    <tbody class="divide-y divide-gray-200 bg-white">
-                        <tr v-for="doctor in doctors.data" :key="doctor.slug">
+                        <tbody class="divide-y divide-gray-200 bg-white">
+                            <tr v-for="doctor in doctors.data" :key="doctor.slug">
 
-                            <td class="px-4 py-4">
-                                <img v-if="doctor.photo" :src="doctor.photo"
-                                    class="h-12 w-12 rounded-full object-cover border">
-                                <div v-else class="h-12 w-12 bg-gray-200 rounded-full flex items-center justify-center">
-                                    <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-500">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
-                                            fill="none" stroke="currentColor"
-                                            d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.5 20.25a8.25 8.25 0 1115 0v.75H4.5v-.75z" />
-                                    </svg>
-                                </div>
-                            </td>
+                                <td class="px-4 py-4">
+                                    <img v-if="doctor.photo" :src="doctor.photo"
+                                        class="h-12 w-12 rounded-full object-cover border">
+                                    <div v-else
+                                        class="h-12 w-12 bg-gray-200 rounded-full flex items-center justify-center">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-gray-500">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                                                fill="none" stroke="currentColor"
+                                                d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.5 20.25a8.25 8.25 0 1115 0v.75H4.5v-.75z" />
+                                        </svg>
+                                    </div>
+                                </td>
 
-                            <td class="px-4 py-4 font-medium text-gray-900">{{ doctor.name }}</td>
-                            <td class="px-4 py-4 text-gray-700">{{ doctor.specialty }}</td>
+                                <td class="px-4 py-4 font-medium text-gray-900">{{ doctor.name }}</td>
+                                <td class="px-4 py-4 text-gray-700">{{ doctor.specialty }}</td>
 
-                            <td class="px-4 py-4">
-                                <span :class="doctor.is_active
-                                    ? 'bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs'
-                                    : 'bg-red-100 text-red-700 px-3 py-1 rounded-full text-xs'">
-                                    {{ doctor.is_active ? 'Activo' : 'Inactivo' }}
-                                </span>
-                            </td>
+                                <td class="px-4 py-4">
+                                    <span :class="doctor.is_active
+                                        ? 'bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs'
+                                        : 'bg-red-100 text-red-700 px-3 py-1 rounded-full text-xs'">
+                                        {{ doctor.is_active ? 'Activo' : 'Inactivo' }}
+                                    </span>
+                                </td>
 
-                            <td class="px-4 py-4 flex gap-3">
-                                <!-- Cambio 1: Usar slug en editar -->
-                                <Link :href="route('doctors.edit', doctor.slug)"
-                                    class="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-                                Editar
-                                </Link>
+                                <td class="px-4 py-4 flex gap-3">
+                                    <!-- Cambio 1: Usar slug en editar -->
+                                    <Link :href="route('doctors.edit', doctor.slug)"
+                                        class="px-3 py-1.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                                    Editar
+                                    </Link>
 
-                                <!-- Cambio 2: Usar slug en ver -->
-                                <Link :href="route('doctors.show', doctor.slug)"
-                                    class="px-3 py-1.5 bg-gray-600 text-white rounded-lg hover:bg-gray-700">
-                                Ver
-                                </Link>
+                                    <!-- Cambio 2: Usar slug en ver -->
+                                    <Link :href="route('doctors.show', doctor.slug)"
+                                        class="px-3 py-1.5 bg-gray-600 text-white rounded-lg hover:bg-gray-700">
+                                    Ver
+                                    </Link>
 
-                                <!-- Cambio 3: Usar slug en toggle (botón inactivar/activar) -->
-                                <button @click="openConfirm(doctor)" class="px-3 py-1.5 rounded-lg text-white" :class="doctor.is_active
-                                    ? 'bg-red-600 hover:bg-red-700'
-                                    : 'bg-green-600 hover:bg-green-700'">
-                                    {{ doctor.is_active ? 'Inactivar' : 'Activar' }}
-                                </button>
+                                    <!-- Cambio 3: Usar slug en toggle (botón inactivar/activar) -->
+                                    <button @click="openConfirm(doctor)" class="px-3 py-1.5 rounded-lg text-white"
+                                        :class="doctor.is_active
+                                            ? 'bg-red-600 hover:bg-red-700'
+                                            : 'bg-green-600 hover:bg-green-700'">
+                                        {{ doctor.is_active ? 'Inactivar' : 'Activar' }}
+                                    </button>
 
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
 
                 <!-- Paginación -->
                 <div class="mt-6 flex justify-between">

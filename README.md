@@ -27,7 +27,7 @@ npm install vue-cal
 composer require league/flysystem-aws-s3-v3 ~3.0
 ```
 
-3. Configura PostgreSQL editando el archivo `.env` en la raíz del proyecto:
+3. Configura PostgreSQL editando el archivo `.env` en la raíz del proyecto, el servicio de MAIL y el servicio de AWS S3
 
 ```env
 DB_CONNECTION=pgsql
@@ -47,6 +47,13 @@ MAIL_PASSWORD=tu_password_mailtrap
 MAIL_ENCRYPTION=tls
 MAIL_FROM_ADDRESS="noreply@citasneurologia.com"
 MAIL_FROM_NAME="Citas Neurología"
+
+AWS_ACCESS_KEY_ID=tu_access_key_id
+AWS_SECRET_ACCESS_KEY=tu_secret_access_key
+AWS_DEFAULT_REGION=us-east-1
+AWS_BUCKET=name_de_tu_bucket
+AWS_URL=https://name_de_tu_bucket.s3.amazonaws.com
+AWS_USE_PATH_STYLE_ENDPOINT=false
 ```
 
 4. Crea la base de datos `citas_neurologia` en PostgreSQL:
