@@ -170,8 +170,8 @@ const completeAppointment = () => {
                             <div class="p-4 bg-gray-50 rounded-lg md:col-span-2">
                                 <p class="text-sm text-gray-600 font-semibold">Fecha de Nacimiento</p>
                                 <p class="text-lg font-bold text-gray-800 mt-1">
-                                    {{ appointment.patient_birth_date || '—' }}
-                                </p>
+                                    {{ appointment.patient_birth_date ? new Date(appointment.patient_birth_date).toISOString().split('T')[0] : '—' }}
+                                    </p>
                             </div>
                         </div>
                     </section>
