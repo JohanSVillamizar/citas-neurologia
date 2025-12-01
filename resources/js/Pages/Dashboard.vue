@@ -22,8 +22,17 @@ const filteredConfirmed = computed(() => {
     return props.confirmedAppointments.filter(apt => apt.doctor_id === selectedDoctorFilter.value);
 });
 
-const formatDate = (date) => {
-    return new Date(date).toLocaleDateString('es-ES', {
+const formatDate = (dateString) => {
+    const date = new Date(dateString);
+    const year = date.getFullYear();
+    const month = date.getMonth();
+    const day = date.getDate();
+    
+    // Usa las partes del string directamente
+    const parts = dateString.split('T')[0].split('-');
+    const localDate = new Date(parts[0], parts[1] - 1, parts[2]);
+    
+    return localDate.toLocaleDateString('es-ES', {
         weekday: 'short',
         year: 'numeric',
         month: 'short',
@@ -31,11 +40,10 @@ const formatDate = (date) => {
     });
 };
 
-const formatTime = (date) => {
-    return new Date(date).toLocaleTimeString('es-ES', {
-        hour: '2-digit',
-        minute: '2-digit',
-    });
+const formatTime = (dateString) => {
+    const timePart = dateString.split('T')[1];
+    if (!timePart) return '';
+    return timePart.substring(0, 5);
 };
 </script>
 

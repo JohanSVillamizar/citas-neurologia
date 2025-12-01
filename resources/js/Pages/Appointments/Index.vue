@@ -51,8 +51,11 @@ const completeAppointment = () => {
     );
 };
 
-const formatDate = (date) => {
-    return new Date(date).toLocaleDateString('es-ES', {
+const formatDate = (dateString) => {
+    const parts = dateString.split('T')[0].split('-');
+    const date = new Date(parts[0], parts[1] - 1, parts[2]);
+    
+    return date.toLocaleDateString('es-ES', {
         weekday: 'long',
         year: 'numeric',
         month: 'long',
@@ -60,11 +63,9 @@ const formatDate = (date) => {
     });
 };
 
-const formatTime = (date) => {
-    return new Date(date).toLocaleTimeString('es-ES', {
-        hour: '2-digit',
-        minute: '2-digit',
-    });
+const formatTime = (dateString) => {
+    const time = dateString.split('T')[1];
+    return time ? time.substring(0, 5) : '—';
 };
 </script>
 
