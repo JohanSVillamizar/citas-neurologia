@@ -25,15 +25,12 @@ const selectedDate = ref(startParam ? startParam.split('T')[0] : formatLocalDate
 const selectedSlot = ref(startParam ? startParam.split('T')[1]?.slice(0, 5) : '')
 const currentWeekStart = ref(getWeekStart(startParam ? new Date(startParam) : new Date()))
 const weekSlots = ref({})
-// doctorWorkingDays DEBE contener un array de 0 a 6. Ej: [1, 2, 3, 4, 5] para Lun-Vie, o [0, 6] para solo fines de semana.
-const doctorWorkingDays = ref([]) 
 const loading = ref(false)
 const submitting = ref(false)
 
 function getWeekStart(date) {
   const d = new Date(date)
   const day = d.getDay()
-  // Calcula el inicio de la semana (Lunes)
   const diff = d.getDate() - day + (day === 0 ? -6 : 1)
   return new Date(d.setDate(diff))
 }
@@ -63,17 +60,8 @@ const weekDays = computed(() => {
     date.setHours(0, 0, 0, 0)
     
     const dateStr = formatLocalDate(date)
-    const dayIndex = date.getDay() // 0=Dom, 1=Lun, ..., 6=Sáb
+    const isWeekend = date.getDay() === 0 || date.getDay() === 6
     
-    // --- LÓGICA CORREGIDA PARA COINCIDIR CON BD (0=DOMINGO) ---
-    // Si la BD usa 0=Domingo, usamos el índice nativo de JS sin conversión.
-    const dayDbIndex = dayIndex; // 0=Dom, 1=Lun, 2=Mar, etc.
-
-    const isWeekend = dayIndex === 0 || dayIndex === 6
-    
-    // VERIFICACIÓN CLAVE: ¿El doctor trabaja este día? (Usando el índice 0-6 de la BD)
-    const isWorkingDay = doctorWorkingDays.value.includes(dayDbIndex); 
-
     days.push({
       date,
       dateStr,
@@ -84,7 +72,6 @@ const weekDays = computed(() => {
       isPast: date < today,
       isToday: date.toDateString() === today.toDateString(),
       isWeekend,
-      isWorkingDay,
       slots: weekSlots.value[dateStr] || []
     })
   }
@@ -106,46 +93,26 @@ const weekRange = computed(() => {
 const formattedSelectedDate = computed(() => {
   if (!selectedDate.value) return ''
   const d = new Date(selectedDate.value + 'T00:00')
-  // Nota: Mantenemos este ajuste visual para que dayNames[0] (Lunes) se muestre correctamente.
-  const day = dayNames[d.getDay() === 0 ? 6 : d.getDay() - 1] 
+  const day = dayNames[d.getDay() === 0 ? 6 : d.getDay() - 1]
   return `${day}, ${d.getDate()} de ${monthNames[d.getMonth()]} de ${d.getFullYear()}`
 })
 
-// Cargar horarios para toda la semana y días laborales del doctor desde doctor_schedules
+// Cargar horarios para toda la semana - REVISA LA BD Y DESHABILITA LOS TOMADOS
 async function loadWeekSlots() {
   if (!props.selectedDoctor) return
   loading.value = true
   weekSlots.value = {}
   
   try {
-    // 1. Obtener la lista de días laborales y slots del primer día no pasado
-    const firstDay = weekDays.value.find(d => !d.isPast)
-    if (firstDay) {
-      // Hacemos una llamada inicial que nos devuelve los working_days del doctor
-      const initialRes = await axios.get(`/api/medicos/${props.selectedDoctor.slug}/disponibilidad?date=${firstDay.dateStr}`)
-      if (initialRes.data.working_days) {
-        // Asumiendo que el backend retorna [0, 1, 2, 3, 4, 5, 6] para los días
-        doctorWorkingDays.value = initialRes.data.working_days
-      }
-      
-      // Cargamos el primer día aquí mismo
-      weekSlots.value[firstDay.dateStr] = (initialRes.data.slots || []).map(slot => ({
-        time: slot.time,
-        taken: !!slot.taken
-      }))
-    }
-    
-    // 2. Cargar slots solo para días laborales y futuros (excluyendo el primero si ya se cargó)
     const promises = weekDays.value
-      .filter(day => !day.isPast && day.isWorkingDay && day.dateStr !== firstDay.dateStr) 
+      .filter(day => !day.isPast && !day.isWeekend)
       .map(async day => {
         try {
-          const res = await axios.get(`/api/medicos/${props.selectedDoctor.slug}/disponibilidad?date=${day.dateStr}`)
-          
-          // Marcar horarios tomados desde la BD
-          weekSlots.value[day.dateStr] = (res.data.slots || []).map(slot => ({
+          const res = await axios.get(`/medicos/${props.selectedDoctor.slug}/disponibilidad?date=${day.dateStr}`)
+          // AQUÍ SE MARCAN LOS HORARIOS TOMADOS DESDE LA BD
+          weekSlots.value[day.dateStr] = res.data.slots.map(slot => ({
             time: slot.time,
-            taken: !!slot.taken
+            taken: !!slot.taken  // <- ESTO DESHABILITA LOS HORARIOS OCUPADOS
           }))
         } catch (e) {
           weekSlots.value[day.dateStr] = []
@@ -191,7 +158,6 @@ const handleSubmit = () => {
     return 
   }
   
-  // Validación rápida de campos requeridos (el backend debe hacer la validación completa)
   if (!form.value.patient_name || !form.value.patient_email || !form.value.patient_phone || 
       !form.value.patient_id_number || !form.value.patient_birth_date) { 
     Swal.fire({
@@ -207,7 +173,6 @@ const handleSubmit = () => {
   const appointmentDateTime = `${selectedDate.value} ${selectedSlot.value}:00`
   const payload = { doctor_id: props.selectedDoctor.id, ...form.value, appointment_date: appointmentDateTime }
 
-  // Asegúrate de que tu ruta de POST sea correcta. Por defecto es /appointments.
   router.post('/appointments', payload, {
     preserveScroll: true,
     preserveState: true,
@@ -244,6 +209,7 @@ const goBack = () => router.get('/')
   <div class="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 py-8 px-4">
     <div class="max-w-7xl mx-auto">
       
+      <!-- HEADER MEJORADO -->
       <div class="bg-white rounded-2xl shadow-xl mb-6 overflow-hidden">
         <div class="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 p-6">
           <button @click="goBack" class="text-white/90 hover:text-white font-medium mb-4 inline-flex items-center gap-2 transition">
@@ -267,9 +233,11 @@ const goBack = () => router.get('/')
 
       <div class="grid lg:grid-cols-3 gap-6">
         
+        <!-- CALENDARIO SEMANAL - 2 COLUMNAS -->
         <div class="lg:col-span-2">
           <div class="bg-white rounded-2xl shadow-xl p-6">
             
+            <!-- NAVEGACIÓN SEMANAL -->
             <div class="flex items-center justify-between mb-6 pb-4 border-b-2">
               <button @click="handlePrevWeek" 
                 class="p-2 hover:bg-blue-50 rounded-lg transition group">
@@ -293,11 +261,13 @@ const goBack = () => router.get('/')
               </button>
             </div>
 
+            <!-- LOADING STATE -->
             <div v-if="loading" class="text-center py-16">
               <div class="inline-block animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent"></div>
               <p class="mt-4 text-gray-600 font-medium">Cargando disponibilidad...</p>
             </div>
 
+            <!-- GRID DE DÍAS CON HORARIOS -->
             <div v-else class="grid grid-cols-7 gap-2">
               <div 
                 v-for="(dayObj, idx) in weekDays" 
@@ -305,12 +275,13 @@ const goBack = () => router.get('/')
                 :class="[
                   'rounded-xl overflow-hidden border-2 transition-all',
                   dayObj.isToday ? 'border-blue-500 shadow-lg' : 'border-gray-200',
-                  !dayObj.isPast && dayObj.isWorkingDay ? 'hover:shadow-md' : ''
+                  !dayObj.isPast && !dayObj.isWeekend ? 'hover:shadow-md' : ''
                 ]">
                 
+                <!-- ENCABEZADO DEL DÍA -->
                 <div :class="[
                   'p-3 text-center font-bold',
-                  dayObj.isPast || !dayObj.isWorkingDay
+                  dayObj.isPast || dayObj.isWeekend 
                     ? 'bg-gray-100 text-gray-400' 
                     : dayObj.isToday 
                       ? 'bg-gradient-to-br from-blue-500 to-blue-600 text-white' 
@@ -321,30 +292,22 @@ const goBack = () => router.get('/')
                   <div v-if="dayObj.isToday" class="text-[10px] mt-1 font-semibold">HOY</div>
                 </div>
 
+                <!-- LISTA DE HORARIOS -->
                 <div class="p-1.5 space-y-1 bg-gray-50 min-h-[280px] max-h-[400px] overflow-y-auto">
                   
-                  <div v-if="dayObj.isPast" 
+                  <!-- Día no disponible -->
+                  <div v-if="dayObj.isPast || dayObj.isWeekend" 
                     class="text-center py-12 px-2">
                     <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8 mx-auto text-gray-300 mb-2" fill="none" stroke="currentColor" stroke-width="2">
                       <circle cx="12" cy="12" r="10"></circle>
                       <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line>
                     </svg>
                     <p class="text-[10px] text-gray-400 font-medium">
-                      Fecha pasada
+                      {{ dayObj.isPast ? 'Fecha pasada' : 'Cerrado' }}
                     </p>
                   </div>
 
-                  <div v-else-if="!dayObj.isWorkingDay" 
-                    class="text-center py-12 px-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8 mx-auto text-gray-300 mb-2" fill="none" stroke="currentColor" stroke-width="2">
-                      <circle cx="12" cy="12" r="10"></circle>
-                      <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line>
-                    </svg>
-                    <p class="text-[10px] text-gray-400 font-medium">
-                      Doctor no disponible
-                    </p>
-                  </div>
-
+                  <!-- Sin horarios disponibles -->
                   <div v-else-if="dayObj.slots.length === 0" 
                     class="text-center py-12 px-2">
                     <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8 mx-auto text-gray-300 mb-2" fill="none" stroke="currentColor" stroke-width="2">
@@ -355,6 +318,7 @@ const goBack = () => router.get('/')
                     <p class="text-[10px] text-gray-400 font-medium">Sin horarios</p>
                   </div>
 
+                  <!-- HORARIOS DISPONIBLES Y OCUPADOS -->
                   <button
                     v-else
                     v-for="slot in dayObj.slots"
@@ -386,6 +350,7 @@ const goBack = () => router.get('/')
               </div>
             </div>
 
+            <!-- RESUMEN SELECCIÓN -->
             <div v-if="selectedDate && selectedSlot" 
               class="mt-6 p-4 bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-300 rounded-xl">
               <div class="flex items-center gap-3">
@@ -403,6 +368,7 @@ const goBack = () => router.get('/')
           </div>
         </div>
 
+        <!-- FORMULARIO - 1 COLUMNA -->
         <div class="lg:col-span-1">
           <div class="bg-white rounded-2xl shadow-xl p-6 sticky top-6">
             <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
@@ -415,6 +381,7 @@ const goBack = () => router.get('/')
             
             <div class="space-y-3">
               
+              <!-- NOMBRE -->
               <div>
                 <label class="block text-xs font-bold text-gray-700 mb-1">Nombre completo *</label>
                 <input v-model="form.patient_name" type="text" required
@@ -425,6 +392,7 @@ const goBack = () => router.get('/')
                 </div>
               </div>
 
+              <!-- EMAIL -->
               <div>
                 <label class="block text-xs font-bold text-gray-700 mb-1">Correo electrónico *</label>
                 <input v-model="form.patient_email" type="email" required
@@ -435,6 +403,7 @@ const goBack = () => router.get('/')
                 </div>
               </div>
 
+              <!-- TELÉFONO -->
               <div>
                 <label class="block text-xs font-bold text-gray-700 mb-1">Teléfono *</label>
                 <input v-model="form.patient_phone" type="tel" required
@@ -445,6 +414,7 @@ const goBack = () => router.get('/')
                 </div>
               </div>
 
+              <!-- ID -->
               <div>
                 <label class="block text-xs font-bold text-gray-700 mb-1">Número de identificación *</label>
                 <input v-model="form.patient_id_number" type="text" required
@@ -455,6 +425,7 @@ const goBack = () => router.get('/')
                 </div>
               </div>
 
+              <!-- FECHA NACIMIENTO -->
               <div>
                 <label class="block text-xs font-bold text-gray-700 mb-1">Fecha de nacimiento *</label>
                 <input v-model="form.patient_birth_date" type="date" required :max="maxBirthDate"
@@ -464,6 +435,7 @@ const goBack = () => router.get('/')
                 </div>
               </div>
 
+              <!-- MOTIVO -->
               <div>
                 <label class="block text-xs font-bold text-gray-700 mb-1">Motivo de consulta (opcional)</label>
                 <textarea v-model="form.reason" rows="2"
@@ -471,6 +443,7 @@ const goBack = () => router.get('/')
                   placeholder="Describe brevemente..."></textarea>
               </div>
 
+              <!-- BOTÓN -->
               <button @click="handleSubmit" :disabled="!selectedSlot || submitting"
                 class="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold py-3 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">
                 <span v-if="submitting" class="flex items-center justify-center gap-2">
