@@ -1,12 +1,16 @@
 <script setup>
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { router, usePage } from '@inertiajs/vue3'
 import axios from 'axios'
 import Swal from 'sweetalert2'
 
 const props = defineProps({
   selectedDoctor: Object,
-  doctors: Array
+  doctors: Array,
+  defaultDurationMinutes: {
+    type: Number,
+    default: 30
+  }
 })
 
 const page = usePage()
@@ -22,11 +26,36 @@ const routeParams = new URLSearchParams(window.location.search);
 const startParam = routeParams.get('start');
 
 const selectedDate = ref(startParam ? startParam.split('T')[0] : formatLocalDate(new Date()))
-const selectedSlot = ref(startParam ? startParam.split('T')[1]?.slice(0, 5) : '')
+const selectedSlot = ref('')
 const currentWeekStart = ref(getWeekStart(startParam ? new Date(startParam) : new Date()))
 const weekSlots = ref({})
 const loading = ref(false)
 const submitting = ref(false)
+
+// LÓGICA DE RELOJ LOCAL
+const currentMoment = ref(new Date());
+let intervalId = null;
+
+onMounted(() => {
+    // Actualizar la hora actual cada minuto
+    intervalId = setInterval(() => {
+        currentMoment.value = new Date();
+    }, 60000); 
+});
+
+onUnmounted(() => {
+    clearInterval(intervalId);
+});
+
+// Hora actual en formato HH:MM (ej: '15:47') para comparación de strings
+const currentTimeStr = computed(() => {
+    const hours = String(currentMoment.value.getHours());
+    // Redondeo hacia abajo a 5 minutos para alinear con bloques de citas
+    const minutes = Math.floor(currentMoment.value.getMinutes() / 5) * 5; 
+    return `${hours.padStart(2, '0')}:${String(minutes).padStart(2, '0')}`; 
+});
+// FIN LÓGICA DE RELOJ LOCAL
+
 
 function getWeekStart(date) {
   const d = new Date(date)
@@ -50,33 +79,47 @@ const dayNamesShort = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom']
 const maxBirthDate = computed(() => formatLocalDate(new Date()))
 
 const weekDays = computed(() => {
-  const days = []
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-  
-  for (let i = 0; i < 7; i++) {
-    const date = new Date(currentWeekStart.value)
-    date.setDate(date.getDate() + i)
-    date.setHours(0, 0, 0, 0)
+    const days = []
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
     
-    const dateStr = formatLocalDate(date)
-    const isWeekend = date.getDay() === 0 || date.getDay() === 6
+    for (let i = 0; i < 7; i++) {
+        const date = new Date(currentWeekStart.value)
+        date.setDate(date.getDate() + i)
+        date.setHours(0, 0, 0, 0)
+        
+        const dateStr = formatLocalDate(date)
+        const isWeekend = date.getDay() === 0 || date.getDay() === 6
+        const isToday = date.toDateString() === today.toDateString()
+        
+        // 1. Determinar si los slots ya pasaron
+        const augmentedSlots = (weekSlots.value[dateStr] || []).map(slot => ({
+            ...slot,
+            // Bloquea el slot si es hoy Y la hora del slot es menor o igual a la hora actual
+            isPastToday: isToday && slot.time <= currentTimeStr.value 
+        }));
+
+        // 2. Determinar si el día tiene algún slot disponible (no tomado y no pasado)
+        const hasAvailableSlots = augmentedSlots.some(
+            slot => !slot.taken && !slot.isPastToday
+        );
+
+        days.push({
+            date,
+            dateStr,
+            day: date.getDate(),
+            dayName: dayNamesShort[i],
+            dayNameFull: dayNames[i],
+            month: monthNames[date.getMonth()],
+            isPast: date < today, 
+            isToday: isToday,
+            isWeekend,
+            slots: augmentedSlots,
+            hasAvailableSlots: hasAvailableSlots 
+        })
+    }
     
-    days.push({
-      date,
-      dateStr,
-      day: date.getDate(),
-      dayName: dayNamesShort[i],
-      dayNameFull: dayNames[i],
-      month: monthNames[date.getMonth()],
-      isPast: date < today,
-      isToday: date.toDateString() === today.toDateString(),
-      isWeekend,
-      slots: weekSlots.value[dateStr] || []
-    })
-  }
-  
-  return days
+    return days
 })
 
 const weekRange = computed(() => {
@@ -97,7 +140,6 @@ const formattedSelectedDate = computed(() => {
   return `${day}, ${d.getDate()} de ${monthNames[d.getMonth()]} de ${d.getFullYear()}`
 })
 
-// Cargar horarios para toda la semana - REVISA LA BD Y DESHABILITA LOS TOMADOS
 async function loadWeekSlots() {
   if (!props.selectedDoctor) return
   loading.value = true
@@ -105,16 +147,18 @@ async function loadWeekSlots() {
   
   try {
     const promises = weekDays.value
-      .filter(day => !day.isPast && !day.isWeekend)
+      // NOTA: No filtramos por !day.isWeekend aquí.
+      .filter(day => !day.isPast)
       .map(async day => {
         try {
+          // La API debe retornar slots vacíos [] si el médico no trabaja ese día.
           const res = await axios.get(`/medicos/${props.selectedDoctor.slug}/disponibilidad?date=${day.dateStr}`)
-          // AQUÍ SE MARCAN LOS HORARIOS TOMADOS DESDE LA BD
           weekSlots.value[day.dateStr] = res.data.slots.map(slot => ({
             time: slot.time,
-            taken: !!slot.taken  // <- ESTO DESHABILITA LOS HORARIOS OCUPADOS
+            taken: !!slot.taken
           }))
         } catch (e) {
+          // En caso de error, asumimos que no hay slots
           weekSlots.value[day.dateStr] = []
         }
       })
@@ -141,8 +185,8 @@ const handleNextWeek = () => {
   currentWeekStart.value = newStart
 }
 
-const selectSlot = (dateStr, slotTime, isTaken) => {
-  if (isTaken) return // No permitir seleccionar horarios tomados
+const selectSlot = (dateStr, slotTime, isTaken, isPastToday) => {
+  if (isTaken || isPastToday) return 
   selectedDate.value = dateStr
   selectedSlot.value = slotTime
 }
@@ -171,7 +215,13 @@ const handleSubmit = () => {
 
   submitting.value = true
   const appointmentDateTime = `${selectedDate.value} ${selectedSlot.value}:00`
-  const payload = { doctor_id: props.selectedDoctor.id, ...form.value, appointment_date: appointmentDateTime }
+  
+  const payload = { 
+    doctor_id: props.selectedDoctor.id, 
+    ...form.value, 
+    appointment_date: appointmentDateTime,
+    duration_minutes: props.defaultDurationMinutes
+  }
 
   router.post('/appointments', payload, {
     preserveScroll: true,
@@ -209,7 +259,6 @@ const goBack = () => router.get('/')
   <div class="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 py-8 px-4">
     <div class="max-w-7xl mx-auto">
       
-      <!-- HEADER MEJORADO -->
       <div class="bg-white rounded-2xl shadow-xl mb-6 overflow-hidden">
         <div class="bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 p-6">
           <button @click="goBack" class="text-white/90 hover:text-white font-medium mb-4 inline-flex items-center gap-2 transition">
@@ -233,11 +282,9 @@ const goBack = () => router.get('/')
 
       <div class="grid lg:grid-cols-3 gap-6">
         
-        <!-- CALENDARIO SEMANAL - 2 COLUMNAS -->
         <div class="lg:col-span-2">
           <div class="bg-white rounded-2xl shadow-xl p-6">
             
-            <!-- NAVEGACIÓN SEMANAL -->
             <div class="flex items-center justify-between mb-6 pb-4 border-b-2">
               <button @click="handlePrevWeek" 
                 class="p-2 hover:bg-blue-50 rounded-lg transition group">
@@ -261,13 +308,11 @@ const goBack = () => router.get('/')
               </button>
             </div>
 
-            <!-- LOADING STATE -->
             <div v-if="loading" class="text-center py-16">
               <div class="inline-block animate-spin rounded-full h-12 w-12 border-4 border-blue-500 border-t-transparent"></div>
               <p class="mt-4 text-gray-600 font-medium">Cargando disponibilidad...</p>
             </div>
 
-            <!-- GRID DE DÍAS CON HORARIOS -->
             <div v-else class="grid grid-cols-7 gap-2">
               <div 
                 v-for="(dayObj, idx) in weekDays" 
@@ -275,13 +320,13 @@ const goBack = () => router.get('/')
                 :class="[
                   'rounded-xl overflow-hidden border-2 transition-all',
                   dayObj.isToday ? 'border-blue-500 shadow-lg' : 'border-gray-200',
-                  !dayObj.isPast && !dayObj.isWeekend ? 'hover:shadow-md' : ''
+                  !dayObj.isPast && dayObj.hasAvailableSlots ? 'hover:shadow-md' : '' 
                 ]">
                 
-                <!-- ENCABEZADO DEL DÍA -->
                 <div :class="[
                   'p-3 text-center font-bold',
-                  dayObj.isPast || dayObj.isWeekend 
+                  // ESTILO DEL ENCABEZADO: solo se marca gris si está en el pasado o si NO tiene slots disponibles.
+                  dayObj.isPast && !dayObj.isToday || !dayObj.hasAvailableSlots 
                     ? 'bg-gray-100 text-gray-400' 
                     : dayObj.isToday 
                       ? 'bg-gradient-to-br from-blue-500 to-blue-600 text-white' 
@@ -292,65 +337,62 @@ const goBack = () => router.get('/')
                   <div v-if="dayObj.isToday" class="text-[10px] mt-1 font-semibold">HOY</div>
                 </div>
 
-                <!-- LISTA DE HORARIOS -->
                 <div class="p-1.5 space-y-1 bg-gray-50 min-h-[280px] max-h-[400px] overflow-y-auto">
                   
-                  <!-- Día no disponible -->
-                  <div v-if="dayObj.isPast || dayObj.isWeekend" 
-                    class="text-center py-12 px-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8 mx-auto text-gray-300 mb-2" fill="none" stroke="currentColor" stroke-width="2">
-                      <circle cx="12" cy="12" r="10"></circle>
-                      <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line>
-                    </svg>
-                    <p class="text-[10px] text-gray-400 font-medium">
-                      {{ dayObj.isPast ? 'Fecha pasada' : 'Cerrado' }}
-                    </p>
+                  <div v-if="dayObj.isPast && !dayObj.isToday || (dayObj.isToday && !dayObj.hasAvailableSlots)" 
+                      class="text-center py-12 px-2">
+                      <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8 mx-auto text-gray-300 mb-2" fill="none" stroke="currentColor" stroke-width="2">
+                          <circle cx="12" cy="12" r="10"></circle>
+                          <line x1="4.93" y1="4.93" x2="19.07" y2="19.07"></line>
+                      </svg>
+                      <p class="text-[10px] text-gray-400 font-medium">
+                          {{ dayObj.isPast && !dayObj.isToday ? 'Fecha pasada' : 'Horarios agotados' }}
+                      </p>
                   </div>
 
-                  <!-- Sin horarios disponibles -->
                   <div v-else-if="dayObj.slots.length === 0" 
-                    class="text-center py-12 px-2">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8 mx-auto text-gray-300 mb-2" fill="none" stroke="currentColor" stroke-width="2">
-                      <circle cx="12" cy="12" r="10"></circle>
-                      <line x1="12" y1="8" x2="12" y2="12"></line>
-                      <line x1="12" y1="16" x2="12.01" y2="16"></line>
-                    </svg>
-                    <p class="text-[10px] text-gray-400 font-medium">Sin horarios</p>
+                      class="text-center py-12 px-2">
+                      <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8 mx-auto text-gray-300 mb-2" fill="none" stroke="currentColor" stroke-width="2">
+                          <circle cx="12" cy="12" r="10"></circle>
+                          <line x1="12" y1="8" x2="12" y2="12"></line>
+                          <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                      </svg>
+                      <p class="text-[10px] text-gray-400 font-medium">
+                          Sin horarios 
+                      </p>
                   </div>
 
-                  <!-- HORARIOS DISPONIBLES Y OCUPADOS -->
                   <button
-                    v-else
-                    v-for="slot in dayObj.slots"
-                    :key="slot.time"
-                    @click="selectSlot(dayObj.dateStr, slot.time, slot.taken)"
-                    :disabled="slot.taken"
-                    :class="[
-                      'w-full py-2 px-1.5 rounded-lg text-[11px] font-bold transition-all duration-200',
-                      slot.taken
-                        ? 'bg-red-100 text-red-400 cursor-not-allowed border border-red-200 line-through'
-                        : selectedDate === dayObj.dateStr && selectedSlot === slot.time
-                          ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg scale-105 border-2 border-blue-400'
-                          : 'bg-white text-blue-700 hover:bg-blue-500 hover:text-white border border-blue-300 hover:scale-105 hover:shadow-md'
-                    ]">
-                    <div class="flex items-center justify-center gap-1">
-                      <svg v-if="slot.taken" xmlns="http://www.w3.org/2000/svg" class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2">
-                        <circle cx="12" cy="12" r="10"></circle>
-                        <line x1="15" y1="9" x2="9" y2="15"></line>
-                        <line x1="9" y1="9" x2="15" y2="15"></line>
-                      </svg>
-                      <svg v-else-if="selectedDate === dayObj.dateStr && selectedSlot === slot.time" 
-                        xmlns="http://www.w3.org/2000/svg" class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="3">
-                        <polyline points="20 6 9 17 4 12"></polyline>
-                      </svg>
-                      <span>{{ slot.time }}</span>
-                    </div>
+                      v-else
+                      v-for="slot in dayObj.slots"
+                      :key="slot.time"
+                      @click="selectSlot(dayObj.dateStr, slot.time, slot.taken, slot.isPastToday)"
+                      :disabled="slot.taken || slot.isPastToday"
+                      :class="[
+                          'w-full py-2 px-1.5 rounded-lg text-[11px] font-bold transition-all duration-200',
+                          slot.taken || slot.isPastToday 
+                              ? 'bg-red-100 text-red-400 cursor-not-allowed border border-red-200 line-through'
+                              : selectedDate === dayObj.dateStr && selectedSlot === slot.time
+                                  ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-lg scale-105 border-2 border-blue-400'
+                                  : 'bg-white text-blue-700 hover:bg-blue-500 hover:text-white border border-blue-300 hover:scale-105 hover:shadow-md'
+                      ]">
+                      <div class="flex items-center justify-center gap-1">
+                          <svg v-if="slot.taken || slot.isPastToday" xmlns="http://www.w3.org/2000/svg" class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2">
+                              <circle cx="12" cy="12" r="10"></circle>
+                              <line x1="15" y1="9" x2="9" y2="15"></line>
+                              <line x1="9" y1="9" x2="15" y2="15"></line>
+                          </svg>
+                          <svg v-else-if="selectedDate === dayObj.dateStr && selectedSlot === slot.time" 
+                              xmlns="http://www.w3.org/2000/svg" class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="3">
+                              <polyline points="20 6 9 17 4 12"></polyline>
+                          </svg>
+                          <span>{{ slot.time }}</span>
+                      </div>
                   </button>
                 </div>
               </div>
             </div>
 
-            <!-- RESUMEN SELECCIÓN -->
             <div v-if="selectedDate && selectedSlot" 
               class="mt-6 p-4 bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-300 rounded-xl">
               <div class="flex items-center gap-3">
@@ -361,14 +403,15 @@ const goBack = () => router.get('/')
                 </div>
                 <div>
                   <p class="text-sm font-bold text-green-800">Cita seleccionada</p>
-                  <p class="text-sm text-green-700">{{ formattedSelectedDate }} • {{ selectedSlot }}</p>
+                  <p class="text-sm text-green-700">
+                    {{ formattedSelectedDate }} • {{ selectedSlot }}
+                  </p>
                 </div>
               </div>
             </div>
           </div>
         </div>
 
-        <!-- FORMULARIO - 1 COLUMNA -->
         <div class="lg:col-span-1">
           <div class="bg-white rounded-2xl shadow-xl p-6 sticky top-6">
             <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
@@ -381,7 +424,6 @@ const goBack = () => router.get('/')
             
             <div class="space-y-3">
               
-              <!-- NOMBRE -->
               <div>
                 <label class="block text-xs font-bold text-gray-700 mb-1">Nombre completo *</label>
                 <input v-model="form.patient_name" type="text" required
@@ -392,7 +434,6 @@ const goBack = () => router.get('/')
                 </div>
               </div>
 
-              <!-- EMAIL -->
               <div>
                 <label class="block text-xs font-bold text-gray-700 mb-1">Correo electrónico *</label>
                 <input v-model="form.patient_email" type="email" required
@@ -403,7 +444,6 @@ const goBack = () => router.get('/')
                 </div>
               </div>
 
-              <!-- TELÉFONO -->
               <div>
                 <label class="block text-xs font-bold text-gray-700 mb-1">Teléfono *</label>
                 <input v-model="form.patient_phone" type="tel" required
@@ -414,7 +454,6 @@ const goBack = () => router.get('/')
                 </div>
               </div>
 
-              <!-- ID -->
               <div>
                 <label class="block text-xs font-bold text-gray-700 mb-1">Número de identificación *</label>
                 <input v-model="form.patient_id_number" type="text" required
@@ -425,7 +464,6 @@ const goBack = () => router.get('/')
                 </div>
               </div>
 
-              <!-- FECHA NACIMIENTO -->
               <div>
                 <label class="block text-xs font-bold text-gray-700 mb-1">Fecha de nacimiento *</label>
                 <input v-model="form.patient_birth_date" type="date" required :max="maxBirthDate"
@@ -435,7 +473,6 @@ const goBack = () => router.get('/')
                 </div>
               </div>
 
-              <!-- MOTIVO -->
               <div>
                 <label class="block text-xs font-bold text-gray-700 mb-1">Motivo de consulta (opcional)</label>
                 <textarea v-model="form.reason" rows="2"
@@ -443,7 +480,6 @@ const goBack = () => router.get('/')
                   placeholder="Describe brevemente..."></textarea>
               </div>
 
-              <!-- BOTÓN -->
               <button @click="handleSubmit" :disabled="!selectedSlot || submitting"
                 class="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold py-3 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">
                 <span v-if="submitting" class="flex items-center justify-center gap-2">

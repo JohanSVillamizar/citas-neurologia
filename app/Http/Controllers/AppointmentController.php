@@ -53,26 +53,46 @@ class AppointmentController extends Controller
             'selectedDoctor' => $doctor,
             'appointmentDate' => $request->start,
         ]);
+
+        $doctor = $request->has('doctor')
+            ? Doctor::where('slug', $request->doctor)->with('schedules')->first()
+            : null;
+
+        return Inertia::render('Appointments/Create', [
+            'selectedDoctor' => $doctor,
+            'appointmentDate' => $request->start,
+            'doctors' => Doctor::where('is_active', true)->get(),
+            'defaultDurationMinutes' => (int) config('app.maintenance.appointment_duration', 30), 
+        ]);
     }
 
     public function store(StoreAppointmentRequest $request)
     {
         $validated = $request->validated();
 
+        // 1. OBTENER LA DURACIÓN
+        $duration = (int) config('app.maintenance.appointment_duration', 30); 
+
         // Validar que no haya conflicto de horario
         $appointmentDate = Carbon::parse($validated['appointment_date']);
-        $duration = (int) ($validated['duration_minutes'] ?? config('app.appointment_duration', 30));
+        
+        // Calcular el momento en que terminaría la cita
+        $appointmentEnd = $appointmentDate->copy()->addMinutes($duration);
 
         $conflict = Appointment::where('doctor_id', $validated['doctor_id'])
             ->whereIn('status', ['pendiente', 'confirmada'])
-            ->where(function ($query) use ($appointmentDate, $duration) {
-                $query->whereBetween('appointment_date', [
-                    $appointmentDate,
-                    $appointmentDate->copy()->addMinutes($duration)
-                ])
-                    ->orWhere(function ($q) use ($appointmentDate) {
-                        $q->where('appointment_date', '<=', $appointmentDate)
-                            ->whereRaw('(appointment_date + (duration_minutes || \' minutes\')::interval) > ?', [$appointmentDate]);
+            ->where(function ($query) use ($appointmentDate, $appointmentEnd) {
+                // Caso 1: Una cita existente comienza durante la cita nueva
+                $query->whereBetween('appointment_date', [$appointmentDate, $appointmentEnd])
+                    // Caso 2: Una cita existente termina durante la cita nueva (usando duration_minutes)
+                    ->orWhere(function ($q) use ($appointmentDate, $appointmentEnd) {
+                        $q->whereRaw("appointment_date + (duration_minutes || ' minutes')::interval > ?", [$appointmentDate])
+                        ->whereRaw("appointment_date + (duration_minutes || ' minutes')::interval <= ?", [$appointmentEnd]);
+                    })
+                    // Caso 3: La cita existente envuelve completamente a la cita nueva
+                    ->orWhere(function ($q) use ($appointmentDate, $appointmentEnd) {
+                        $q->where('appointment_date', '<', $appointmentDate)
+                        ->whereRaw("appointment_date + (duration_minutes || ' minutes')::interval > ?", [$appointmentEnd]);
                     });
             })
             ->exists();
@@ -83,10 +103,10 @@ class AppointmentController extends Controller
             ]);
         }
 
-        $validated['duration_minutes'] = $duration;
+        // 2. ASIGNAR LA DURACIÓN FIJA AL ARRAY DE DATOS A GUARDAR
+        $validated['duration_minutes'] = $duration; 
         $validated['status'] = 'pendiente';
-        // ❌ NO agregar slug aquí - se genera automáticamente en el modelo
-
+        
         // Crear la cita
         $appointment = Appointment::create($validated);
         $appointment->load('doctor');
