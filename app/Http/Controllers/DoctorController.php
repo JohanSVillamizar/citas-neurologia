@@ -34,7 +34,7 @@ class DoctorController extends Controller
         if ($request->hasFile('photo')) {
             $photo = $request->file('photo');
             $path = Storage::disk('s3')->put('doctors', $photo);
-            $validated['photo'] = Storage::disk('s3')->url($path);
+            $validated['photo'] = $path;
         }
 
         Doctor::create($validated);
@@ -72,13 +72,11 @@ class DoctorController extends Controller
 
         if ($request->hasFile('photo')) {
             if ($doctor->photo) {
-                $baseUrl = rtrim(Storage::disk('s3')->url(''), '/');
-                $relativePath = str_replace($baseUrl . '/', '', $doctor->photo);
-                Storage::disk('s3')->delete($relativePath);
+                Storage::disk('s3')->delete($doctor->photo);
             }
 
             $path = Storage::disk('s3')->put('doctors', $request->file('photo'));
-            $validated['photo'] = Storage::disk('s3')->url($path);
+            $validated['photo'] = $path;
         }
 
         $doctor->update($validated);
